@@ -80,7 +80,7 @@ def convert_rgba5551_to_rgba32(rgba5551_bytes):
     g <<= 3
     b <<= 3
 
-    return [r & 0xFF, g & 0xFF, b & 0xFF]
+    return [r, g, b]
 
 
 ###################################
