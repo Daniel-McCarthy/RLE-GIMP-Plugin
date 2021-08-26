@@ -104,26 +104,26 @@ def load_bmr(file):
     file_size = get_file_size(file)
 
     canvas = []
-    line = []
-    colors_added = 0
+    row = []
+    row_len = 0
     # Read in and convert all colors to 32 bit RGBA
     for i in range(0, file_size, 2):
         color_bytes = file.read(2)
         color = convert_rgba5551_to_rgba32(color_bytes)
-        line.append(color)
-        colors_added += 1
+        row.append(color)
+        row_len += 1
 
-        # Break new line when we hit the width
-        if colors_added >= width:
-            canvas.append(line)
-            line = []
-            colors_added = 0
+        # Start new row when we hit the width
+        if row_len >= width:
+            canvas.append(row)
+            row = []
+            row_len = 0
 
-    # If a line wasn't finished, add it to the image anyways.
-    if colors_added > 0:
-        canvas.append(line)
 
     height = len(canvas)
+    # If a row wasn't finished, add it to the image anyways.
+    if row_len > 0:
+        canvas.append(row)
 
     # Create Image and Layer to load image onto.
     img = gimp.Image(width, height, RGB)
