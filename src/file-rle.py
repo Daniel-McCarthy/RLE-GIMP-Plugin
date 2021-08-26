@@ -119,13 +119,12 @@ def load_bmr(file):
             row = []
             row_len = 0
 
-
-    height = len(canvas)
     # If a row wasn't finished, add it to the image anyways.
     if row_len > 0:
         canvas.append(row)
 
     # Create Image and Layer to load image onto.
+    height = len(canvas)
     img = gimp.Image(width, height, RGB)
     lyr = gimp.Layer(img, file.name, width, height,
                      RGB_IMAGE, 100, NORMAL_MODE)
@@ -133,8 +132,8 @@ def load_bmr(file):
     # Get layer pixel data as a pixel region to draw on
     pixel_region = lyr.get_pixel_rgn(0, 0, width, height)
     region_bytes = array("B", pixel_region[0:width, 0:height])
-
     byte_index = 0
+    
     # Transfer the pixel color bytes to the pixel region data array
     for row_index, row in enumerate(canvas):
         for col_index, pixel_color in enumerate(row):
