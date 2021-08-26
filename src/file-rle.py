@@ -166,7 +166,7 @@ def load_rle(file):
     row = []
     row_len = 0
     # Read in, decode, & convert all colors to 32 bit RGBA
-    byte_index = 0
+    byte_index = file.tell()
     while byte_index + 1 < file_size:
         quantity = ord(file.read(1))
         flag = ord(file.read(1))
