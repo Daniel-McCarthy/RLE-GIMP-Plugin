@@ -96,7 +96,6 @@ def verify_file_is_rle(file):
 def load_bmr(file):
     width = 512
     file_size = get_file_size(file)
-    pdb.gimp_message("File Size: {0} bytes".format(file_size))
 
     canvas = []
     line = []
@@ -129,8 +128,6 @@ def load_bmr(file):
     pixel_region = lyr.get_pixel_rgn(0, 0, width, height)
     pixel_bytes = array("B", pixel_region[0:width, 0:height])
 
-    x_pos = 0
-    y_pos = 0
     byte_index = 0
     # Transfer the pixel color bytes to the pixel region data array
     for row_index, row in enumerate(canvas):
@@ -139,17 +136,12 @@ def load_bmr(file):
             pixel_bytes[byte_index + 1] = pixel_color[1]
             pixel_bytes[byte_index + 2] = pixel_color[2]
             byte_index += 3
-            x_pos += 1
-
-        x_pos = 0
-        y_pos += 1
 
     # Load in all the pixels to the pixel region at once
     pixel_region[0:width, 0:height] = pixel_bytes.tostring()
 
     img.add_layer(lyr, 0)
     img.filename = file.name
-    pdb.gimp_message(file.name)
     return img
 
 
@@ -159,7 +151,6 @@ def load_rle(file):
     pdb.gimp_message('This is displayed as a message RLE')
     img = gimp.Image(1, 1, RGB)
     img.filename = file.name
-    pdb.gimp_message(file.name)
     return img
 
 ######################
@@ -172,8 +163,6 @@ def register_load_handlers():
     gimp.register_load_handler('file-neversoft-rle-load', 'rle,bmr', '')
     pdb['gimp-register-file-handler-mime'](
         'file-neversoft-rle-load', 'image/rle')
-    pdb['gimp-register-thumbnail-loader'](
-        'file-neversoft-rle-load', 'file-neversoft-rle-load-thumb')
 
 
 register(
