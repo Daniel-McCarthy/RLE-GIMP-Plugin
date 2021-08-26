@@ -56,7 +56,7 @@ def identify_and_load_format(file_name, uri_path):
 
     # Load encoded RLE format if has expected magic number
     if verify_file_is_rle(file):
-        load_rle(file)
+        return load_rle(file)
 
     alert_and_raise(
         "Failed to load image \"{0}\". No _RLE_16_ magic number found, therefore is an invalid RLE image".format(file.name))
@@ -150,11 +150,86 @@ def load_bmr(file):
     return img
 
 
+class EncodedFlags:
+    READ_NUM_COLORS = 0x00
+    REPEAT_COLOR = 0x80
+    REPEAT_COLOR_AND_NEWLINE = 0x81
+
 def load_rle(file):
     max_width = 512
+    header_length = 12
 
-    pdb.gimp_message('This is displayed as a message RLE')
-    img = gimp.Image(1, 1, RGB)
+    file_size = get_file_size(file)
+    file.seek(header_length)
+
+    canvas = []
+    row = []
+    row_len = 0
+    # Read in, decode, & convert all colors to 32 bit RGBA
+    byte_index = 0
+    while byte_index + 1 < file_size:
+        quantity = ord(file.read(1))
+        flag = ord(file.read(1))
+        byte_index += 2
+
+        if flag == EncodedFlags.READ_NUM_COLORS:
+            for _ in range(0, quantity):
+                color = convert_rgba5551_to_rgba32(file.read(2))
+                byte_index += 2
+                row.append(color)
+                row_len += 1
+
+                if row_len >= max_width:
+                    canvas.append(row)
+                    row = []
+                    row_len = 0
+
+        elif flag == EncodedFlags.REPEAT_COLOR or flag == EncodedFlags.REPEAT_COLOR_AND_NEWLINE:
+            color = convert_rgba5551_to_rgba32(file.read(2))
+            byte_index += 2
+
+            for _ in range(0, quantity):
+                row.append(color)
+                row_len += 1
+
+                if row_len >= max_width:
+                    canvas.append(row)
+                    row = []
+                    row_len = 0
+
+        # Start new line, new line flag found
+        if (flag == EncodedFlags.REPEAT_COLOR_AND_NEWLINE):
+            canvas.append(row)
+            row = []
+            row_len = 0
+
+    # If a row wasn't finished, add it to the image anyways.
+    if row_len > 0:
+        canvas.append(row)
+
+    # Create Image and Layer to load image onto.
+    height = len(canvas)
+    img = gimp.Image(max_width, height, RGB)
+    lyr = gimp.Layer(img, file.name, max_width, height,
+                     RGB_IMAGE, 100, NORMAL_MODE)
+
+    # Get layer pixel data as a pixel region to draw on
+    pixel_region = lyr.get_pixel_rgn(0, 0, max_width, height)
+    region_bytes = array("B", pixel_region[0:max_width, 0:height])
+    byte_index = 0
+    
+    # Transfer the pixel color bytes to the pixel region data array
+    for row_index, row in enumerate(canvas):
+        for col_index, pixel_color in enumerate(row):
+            region_bytes[byte_index] = pixel_color.r
+            region_bytes[byte_index + 1] = pixel_color.g
+            region_bytes[byte_index + 2] = pixel_color.b
+            byte_index += 3
+
+    # Load in all the pixels to the pixel region at once
+    pixel_region[0:max_width, 0:height] = region_bytes.tostring()
+
+    img.add_layer(lyr, 0)
     img.filename = file.name
     return img
 
