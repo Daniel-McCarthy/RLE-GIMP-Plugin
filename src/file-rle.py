@@ -47,8 +47,7 @@ def identify_and_load_format(file_name, uri_path):
     if ".bmr" not in file_extension and ".rle" not in file_extension:
         error_message = "File not supported. Expected .rle or .bmr, but got: '{0}'.".format(
             file_extension)
-        pdb.gimp_message(error_message)
-        raise(error_message)
+        alert_and_raise(error_message)
 
     file = load_file(file_name)
     # Load raw format if has .bmr extension
