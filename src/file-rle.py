@@ -79,7 +79,14 @@ def convert_rgba5551_to_rgba32(rgba5551_bytes):
     g <<= 3
     b <<= 3
 
-    return [r, g, b]
+    return Color(r, g, b)
+
+
+class Color:
+    def __init__(self, r, g, b):
+        self.r = r
+        self.g = g
+        self.b = b
 
 
 ###################################
@@ -125,19 +132,19 @@ def load_bmr(file):
 
     # Get layer pixel data as a pixel region to draw on
     pixel_region = lyr.get_pixel_rgn(0, 0, width, height)
-    pixel_bytes = array("B", pixel_region[0:width, 0:height])
+    region_bytes = array("B", pixel_region[0:width, 0:height])
 
     byte_index = 0
     # Transfer the pixel color bytes to the pixel region data array
     for row_index, row in enumerate(canvas):
         for col_index, pixel_color in enumerate(row):
-            pixel_bytes[byte_index] = pixel_color[0]
-            pixel_bytes[byte_index + 1] = pixel_color[1]
-            pixel_bytes[byte_index + 2] = pixel_color[2]
+            region_bytes[byte_index] = pixel_color.r
+            region_bytes[byte_index + 1] = pixel_color.g
+            region_bytes[byte_index + 2] = pixel_color.b
             byte_index += 3
 
     # Load in all the pixels to the pixel region at once
-    pixel_region[0:width, 0:height] = pixel_bytes.tostring()
+    pixel_region[0:width, 0:height] = region_bytes.tostring()
 
     img.add_layer(lyr, 0)
     img.filename = file.name
