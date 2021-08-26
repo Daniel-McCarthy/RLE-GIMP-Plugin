@@ -107,7 +107,7 @@ def load_bmr(file):
     row = []
     row_len = 0
     # Read in and convert all colors to 32 bit RGBA
-    for i in range(0, file_size, 2):
+    for _ in range(0, file_size, 2):
         color_bytes = file.read(2)
         color = convert_rgba5551_to_rgba32(color_bytes)
         row.append(color)
@@ -166,16 +166,13 @@ def load_rle(file):
     row = []
     row_len = 0
     # Read in, decode, & convert all colors to 32 bit RGBA
-    byte_index = file.tell()
-    while byte_index + 1 < file_size:
+    while file.tell() + 1 < file_size:
         quantity = ord(file.read(1))
         flag = ord(file.read(1))
-        byte_index += 2
 
         if flag == EncodedFlags.READ_NUM_COLORS:
             for _ in range(0, quantity):
                 color = convert_rgba5551_to_rgba32(file.read(2))
-                byte_index += 2
                 row.append(color)
                 row_len += 1
 
@@ -186,7 +183,6 @@ def load_rle(file):
 
         elif flag == EncodedFlags.REPEAT_COLOR or flag == EncodedFlags.REPEAT_COLOR_AND_NEWLINE:
             color = convert_rgba5551_to_rgba32(file.read(2))
-            byte_index += 2
 
             for _ in range(0, quantity):
                 row.append(color)
