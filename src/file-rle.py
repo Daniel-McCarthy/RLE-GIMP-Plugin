@@ -88,6 +88,21 @@ class Color:
         self.g = g
         self.b = b
 
+def transfer_canvas_to_pixel_region(canvas, pixel_region, width, height):
+    region_bytes = array("B", pixel_region[0:width, 0:height])
+    byte_index = 0
+    
+    # Transfer the pixel color bytes to the pixel region data array
+    for row_index, row in enumerate(canvas):
+        for col_index, pixel_color in enumerate(row):
+            region_bytes[byte_index] = pixel_color.r
+            region_bytes[byte_index + 1] = pixel_color.g
+            region_bytes[byte_index + 2] = pixel_color.b
+            byte_index += 3
+
+    # Load in all the pixels to the pixel region at once
+    pixel_region[0:width, 0:height] = region_bytes.tostring()
+
 
 ###################################
 ##   RLE & BMR Format Handling   ##
@@ -123,27 +138,13 @@ def load_bmr(file):
     if row_len > 0:
         canvas.append(row)
 
-    # Create Image and Layer to load image onto.
+    # Create Image and Layer to load image onto & copy pixel data in.
     height = len(canvas)
     img = gimp.Image(width, height, RGB)
     lyr = gimp.Layer(img, file.name, width, height,
                      RGB_IMAGE, 100, NORMAL_MODE)
-
-    # Get layer pixel data as a pixel region to draw on
     pixel_region = lyr.get_pixel_rgn(0, 0, width, height)
-    region_bytes = array("B", pixel_region[0:width, 0:height])
-    byte_index = 0
-    
-    # Transfer the pixel color bytes to the pixel region data array
-    for row_index, row in enumerate(canvas):
-        for col_index, pixel_color in enumerate(row):
-            region_bytes[byte_index] = pixel_color.r
-            region_bytes[byte_index + 1] = pixel_color.g
-            region_bytes[byte_index + 2] = pixel_color.b
-            byte_index += 3
-
-    # Load in all the pixels to the pixel region at once
-    pixel_region[0:width, 0:height] = region_bytes.tostring()
+    transfer_canvas_to_pixel_region(canvas, pixel_region, width, height)
 
     img.add_layer(lyr, 0)
     img.filename = file.name
@@ -203,27 +204,13 @@ def load_rle(file):
     if row_len > 0:
         canvas.append(row)
 
-    # Create Image and Layer to load image onto.
+    # Create Image and Layer to load image onto & copy pixel data in.
     height = len(canvas)
     img = gimp.Image(max_width, height, RGB)
     lyr = gimp.Layer(img, file.name, max_width, height,
                      RGB_IMAGE, 100, NORMAL_MODE)
-
-    # Get layer pixel data as a pixel region to draw on
     pixel_region = lyr.get_pixel_rgn(0, 0, max_width, height)
-    region_bytes = array("B", pixel_region[0:max_width, 0:height])
-    byte_index = 0
-    
-    # Transfer the pixel color bytes to the pixel region data array
-    for row_index, row in enumerate(canvas):
-        for col_index, pixel_color in enumerate(row):
-            region_bytes[byte_index] = pixel_color.r
-            region_bytes[byte_index + 1] = pixel_color.g
-            region_bytes[byte_index + 2] = pixel_color.b
-            byte_index += 3
-
-    # Load in all the pixels to the pixel region at once
-    pixel_region[0:max_width, 0:height] = region_bytes.tostring()
+    transfer_canvas_to_pixel_region(canvas, pixel_region, max_width, height)
 
     img.add_layer(lyr, 0)
     img.filename = file.name
