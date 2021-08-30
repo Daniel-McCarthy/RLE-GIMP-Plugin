@@ -159,7 +159,7 @@ class EncodedFlags:
 def load_rle(file):
     max_width = 512
     header_length = 12
-
+    has_set_width = False
     file_size = get_file_size(file)
     file.seek(header_length)
 
@@ -184,21 +184,31 @@ def load_rle(file):
 
         elif flag == EncodedFlags.REPEAT_COLOR or flag == EncodedFlags.REPEAT_COLOR_AND_NEWLINE:
             color = convert_rgba5551_to_rgba32(file.read(2))
+            needs_newline = flag == EncodedFlags.REPEAT_COLOR_AND_NEWLINE 
+            wrapped = False
 
             for _ in range(0, quantity):
                 row.append(color)
                 row_len += 1
-
                 if row_len >= max_width:
+                    wrapped = True
                     canvas.append(row)
                     row = []
                     row_len = 0
 
-        # Start new line, new line flag found
-        if (flag == EncodedFlags.REPEAT_COLOR_AND_NEWLINE):
-            canvas.append(row)
-            row = []
-            row_len = 0
+            # Wrap if new line flag found ONLY if we haven't already wrapped around image width
+            if (needs_newline and not wrapped):
+                # Set image width to the position of the new line
+                if not has_set_width:
+                    has_set_width = True
+                    y_pos = len(canvas)
+                    if (y_pos > 0):
+                        max_width = len(canvas[0])
+                    else:
+                        max_width = len(row)
+                canvas.append(row)
+                row = []
+                row_len = 0
 
     # If a row wasn't finished, add it to the image anyways.
     if row_len > 0:
