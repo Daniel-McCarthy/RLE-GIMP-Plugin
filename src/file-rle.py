@@ -171,6 +171,14 @@ def load_rle(file):
         quantity = ord(file.read(1))
         flag = ord(file.read(1))
 
+        if (quantity == 0xFE and flag == 0x81):
+            # The seek amount changes for each file and has not yet been determined
+            # how to calculate the beginning of the first pixel. For the 0xFE 0x81
+            # combination it appears to indicate an interlaced image and has some
+            # information before the pixel data begins.
+            file.seek(18, os.SEEK_CUR)
+            continue
+
         if flag == EncodedFlags.READ_NUM_COLORS:
             for _ in range(0, quantity):
                 color = convert_rgba5551_to_rgba32(file.read(2))
