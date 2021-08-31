@@ -111,7 +111,7 @@ def transfer_canvas_to_pixel_region(canvas, pixel_region, width, height):
 def verify_file_is_rle(file):
     magic_number_text = "_RLE_16_"
     first_8_bytes = file.read(8)
-    return str(first_8_bytes).__contains__(magic_number_text)
+    return str(first_8_bytes) in magic_number_text
 
 
 def load_bmr(file):
