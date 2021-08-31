@@ -176,7 +176,7 @@ def load_rle(file):
             # how to calculate the beginning of the first pixel. For the 0xFE 0x81
             # combination it appears to indicate an interlaced image and has some
             # information before the pixel data begins.
-            file.seek(18, os.SEEK_CUR)
+            file.seek(8, os.SEEK_CUR)
             continue
 
         if flag == EncodedFlags.READ_NUM_COLORS:
