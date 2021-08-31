@@ -122,22 +122,19 @@ def load_bmr(file):
 
     canvas = []
     row = []
-    row_len = 0
     # Read in and convert all colors to 32 bit RGBA
     for _ in range(0, file_size, 2):
         color_bytes = file.read(2)
         color = convert_rgba5551_to_rgba32(color_bytes)
         row.append(color)
-        row_len += 1
 
         # Start new row when we hit the width
-        if row_len >= width:
+        if len(row) >= width:
             canvas.append(row)
             row = []
-            row_len = 0
 
     # If a row wasn't finished, add it to the image anyways.
-    if row_len > 0:
+    if len(row) > 0:
         canvas.append(row)
 
     # Create Image and Layer to load image onto & copy pixel data in.
