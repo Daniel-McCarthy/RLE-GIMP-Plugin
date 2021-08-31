@@ -115,6 +115,8 @@ def verify_file_is_rle(file):
 
 
 def load_bmr(file):
+    # Note: The width changes on a per game basis. There is no header data
+    # to determine the width for the image from. 512px is for Spiderman 1 (PSX).
     width = 512
     file_size = get_file_size(file)
 
