@@ -165,10 +165,11 @@ def load_rle(file):
     canvas = []
     row = []
     row_len = 0
+    quantity_bits = 0b0111111111111111
     # Read in, decode, & convert all colors to 32 bit RGBA
     while file.tell() + 1 < file_size:
-        quantity = ord(file.read(1))
-        flag = ord(file.read(1))
+        byte_1 = ord(file.read(1))
+        byte_2 = ord(file.read(1))
 
         if (quantity == 0xFE and flag == 0x81):
             # The seek amount changes for each file and has not yet been determined
@@ -177,6 +178,8 @@ def load_rle(file):
             # information before the pixel data begins.
             file.seek(8, os.SEEK_CUR)
             continue
+        quantity = (byte_1 | (byte_2 << 8)) & quantity_bits
+        flag = EncodedFlags.REPEAT_COLOR if ((byte_2 & 0x80) > 0) else EncodedFlags.READ_NUM_COLORS
 
         if flag == EncodedFlags.READ_NUM_COLORS:
             for _ in range(0, quantity):
