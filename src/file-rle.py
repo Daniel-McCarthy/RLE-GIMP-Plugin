@@ -153,12 +153,10 @@ def load_bmr(file):
 class EncodedFlags:
     READ_NUM_COLORS = 0x00
     REPEAT_COLOR = 0x80
-    REPEAT_COLOR_AND_NEWLINE = 0x81
 
 def load_rle(file):
     max_width = 512
     header_length = 12
-    has_set_width = False
     file_size = get_file_size(file)
     file.seek(header_length)
 
@@ -171,13 +169,6 @@ def load_rle(file):
         byte_1 = ord(file.read(1))
         byte_2 = ord(file.read(1))
 
-        if (quantity == 0xFE and flag == 0x81):
-            # The seek amount changes for each file and has not yet been determined
-            # how to calculate the beginning of the first pixel. For the 0xFE 0x81
-            # combination it appears to indicate an interlaced image and has some
-            # information before the pixel data begins.
-            file.seek(8, os.SEEK_CUR)
-            continue
         quantity = (byte_1 | (byte_2 << 8)) & quantity_bits
         flag = EncodedFlags.REPEAT_COLOR if ((byte_2 & 0x80) > 0) else EncodedFlags.READ_NUM_COLORS
 
@@ -192,33 +183,20 @@ def load_rle(file):
                     row = []
                     row_len = 0
 
-        elif flag == EncodedFlags.REPEAT_COLOR or flag == EncodedFlags.REPEAT_COLOR_AND_NEWLINE:
+        elif flag == EncodedFlags.REPEAT_COLOR:
             color = convert_rgba5551_to_rgba32(file.read(2))
-            needs_newline = flag == EncodedFlags.REPEAT_COLOR_AND_NEWLINE 
-            wrapped = False
 
             for _ in range(0, quantity):
                 row.append(color)
                 row_len += 1
                 if row_len >= max_width:
-                    wrapped = True
                     canvas.append(row)
                     row = []
                     row_len = 0
 
-            # Wrap if new line flag found ONLY if we haven't already wrapped around image width
-            if (needs_newline and not wrapped):
-                # Set image width to the position of the new line
-                if not has_set_width:
-                    has_set_width = True
-                    y_pos = len(canvas)
-                    if (y_pos > 0):
-                        max_width = len(canvas[0])
-                    else:
-                        max_width = len(row)
-                canvas.append(row)
-                row = []
-                row_len = 0
+        else:
+            alert_and_raise("Unsupported flag type found at byte {0}. Flag found: {1}.".format(file.tell(), flag))
+
 
     # If a row wasn't finished, add it to the image anyways.
     if row_len > 0:
