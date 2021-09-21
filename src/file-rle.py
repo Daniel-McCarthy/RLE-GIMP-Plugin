@@ -36,6 +36,16 @@ def get_file_size(file):
 def load_file(file_name):
     return open(file_name, "rb")
 
+def read_int_little_endian(file):
+    bytes_arr = file.read(4)
+    integer = 0
+    for i in range(0, len(bytes_arr)):
+        print(hex(ord(bytes_arr[i])))
+        integer |= ord(bytes_arr[i]) << (8*i) 
+    integer &= 0xFFFFFFFF
+    print(hex(integer))
+    return integer
+
 
 #####################
 ##   Entry Point   ##
@@ -155,17 +165,22 @@ class EncodedFlags:
     REPEAT_COLOR = 0x80
 
 def load_rle(file):
-    max_width = 512
-    header_length = 12
+    # Skip header / magic number
+    header_length = 8
     file_size = get_file_size(file)
     file.seek(header_length)
+
+    # Determine size of image
+    max_width = 512
+    decompressed_file_size = read_int_little_endian(file) - header_length
+    total_rows = (decompressed_file_size / 2) / max_width
 
     canvas = []
     row = []
     row_len = 0
     quantity_bits = 0b0111111111111111
     # Read in, decode, & convert all colors to 32 bit RGBA
-    while file.tell() + 1 < file_size:
+    while file.tell() + 1 < file_size and len(canvas) < total_rows:
         byte_1 = ord(file.read(1))
         byte_2 = ord(file.read(1))
 
