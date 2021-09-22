@@ -14,9 +14,6 @@ from gimpfu import *
 ####################
 
 
-def alert_and_raise(error_message):
-    pdb.gimp_message(error_message)
-    raise Exception(error_message)
 
 
 ############
@@ -57,7 +54,8 @@ def identify_and_load_format(file_name, uri_path):
     if ".bmr" not in file_extension and ".rle" not in file_extension:
         error_message = "File not supported. Expected .rle or .bmr, but got: '{0}'.".format(
             file_extension)
-        alert_and_raise(error_message)
+        pdb.gimp_message(error_message)
+        return
 
     file = load_file(file_name)
     # Load raw format if has .bmr extension
@@ -68,7 +66,7 @@ def identify_and_load_format(file_name, uri_path):
     if verify_file_is_rle(file):
         return load_rle(file)
 
-    alert_and_raise(
+    pdb.gimp_message(
         "Failed to load image \"{0}\". No _RLE_16_ magic number found, therefore is an invalid RLE image".format(file.name))
 
 ########################
@@ -210,7 +208,8 @@ def load_rle(file):
                     row_len = 0
 
         else:
-            alert_and_raise("Unsupported flag type found at byte {0}. Flag found: {1}.".format(file.tell(), flag))
+            pdb.gimp_message("Unsupported flag type found at byte {0}. Flag found: {1}.".format(file.tell(), flag))
+            return
 
 
     # If a row wasn't finished, add it to the image anyways.
