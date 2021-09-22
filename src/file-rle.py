@@ -89,6 +89,13 @@ def convert_rgba5551_to_rgba32(rgba5551_bytes):
 
     return Color(r, g, b)
 
+def convert_rgb888_to_rgba5551(r, g, b):
+    rgba5551_short = 0
+    rgba5551_short |= ((r >> 3) & 0b11111)
+    rgba5551_short |= ((g >> 3) & 0b11111) << 5
+    rgba5551_short |= ((b >> 3) & 0b11111) << 10
+    return rgba5551_short
+
 
 class Color:
     def __init__(self, r, g, b):
@@ -228,11 +235,41 @@ def load_rle(file):
     img.filename = file.name
     return img
 
+def save_bmr(editor_image, drawable, filename, raw_filename):
+    # Image is duplicated to avoid side effects / flattening user's image
+    image = editor_image.duplicate()
+    image.flatten()
+    width = image.width
+    height = image.height
+
+    if (width != 512):
+        pdb.gimp_message("Export failed: Image must be width 512. Received width: '{0}'.".format(width))
+        return
+
+    layer = image.layers[0]
+    pixel_region = layer.get_pixel_rgn(0, 0, width, height)
+    region_bytes = array("B", pixel_region[0:width, 0:height])
+
+
+    converted_color_bytes = bytearray()
+    for i in range(0, len(region_bytes), 3):
+        r = region_bytes[i]
+        g = region_bytes[i+1]
+        b = region_bytes[i+2]
+        rgba_short = convert_rgb888_to_rgba5551(r, g, b)
+        converted_color_bytes.append(rgba_short & 0x00FF)
+        converted_color_bytes.append((rgba_short & 0xFF00) >> 8)
+
+    file = open(filename, 'wb')
+    file.write(converted_color_bytes)
+
 ######################
 ##      Plugin      ##
 ##   Registration   ##
 ######################
 
+def register_save_handlers():
+    gimp.register_save_handler('file-neversoft-bmr-save', 'bmr', '')
 
 def register_load_handlers():
     gimp.register_load_handler('file-neversoft-rle-load', 'rle,bmr', '')
@@ -257,6 +294,27 @@ register(
     identify_and_load_format,
     on_query=register_load_handlers,
     menu="<Load>",
+)
+
+register(
+    'file-neversoft-bmr-save',
+    'save an BMR (.bmr) file',
+    'save an BMR (.bmr) file',
+    'Dan McCarthy',
+    'Dan McCarthy',
+    '2021',
+    'Neversoft BMR',
+    '*',
+    [
+        (PF_IMAGE, "image", "The image to be saved", None),
+        (PF_DRAWABLE, "drawable", "The drawable surface of image", None),
+        (PF_STRING, "filename", "Name for file being saved", None),
+        (PF_STRING, "raw-filename", "Raw name for file being saved", None),
+    ],
+    [],
+    save_bmr,
+    on_query = register_save_handlers,
+    menu = '<Save>'
 )
 
 main()
