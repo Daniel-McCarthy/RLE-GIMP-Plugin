@@ -9,12 +9,6 @@ import sys
 from array import array
 from gimpfu import *
 
-####################
-##   Exceptions   ##
-####################
-
-
-
 
 ############
 ##   IO   ##
@@ -37,10 +31,8 @@ def read_int_little_endian(file):
     bytes_arr = file.read(4)
     integer = 0
     for i in range(0, len(bytes_arr)):
-        print(hex(ord(bytes_arr[i])))
         integer |= ord(bytes_arr[i]) << (8*i) 
     integer &= 0xFFFFFFFF
-    print(hex(integer))
     return integer
 
 
@@ -292,7 +284,6 @@ def save_bmr(editor_image, drawable, filename, raw_filename):
     layer = image.layers[0]
     pixel_region = layer.get_pixel_rgn(0, 0, width, height)
     region_bytes = array("B", pixel_region[0:width, 0:height])
-
 
     converted_color_bytes = bytearray()
     for i in range(0, len(region_bytes), 3):
