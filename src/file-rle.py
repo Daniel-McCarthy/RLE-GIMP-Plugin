@@ -103,6 +103,13 @@ class Color:
         self.g = g
         self.b = b
 
+    def __eq__(self, other):
+        return isinstance(other, Color) and (self.r == other.r) and (self.g == other.g) and (self.b == other.b)
+    
+    def __ne__(self, other):
+        # Necessary in Python 2 for !=
+        return not self.__eq__(other)
+
 def transfer_canvas_to_pixel_region(canvas, pixel_region, width, height):
     region_bytes = array("B", pixel_region[0:width, 0:height])
     byte_index = 0
@@ -223,6 +230,9 @@ def load_rle(file):
     if row_len > 0:
         canvas.append(row)
 
+    # Rotate pixels on wrong side of image if any are found
+    canvas = unshift_columns(canvas)
+
     # Create Image and Layer to load image onto & copy pixel data in.
     height = len(canvas)
     img = gimp.Image(max_width, height, RGB)
@@ -234,6 +244,39 @@ def load_rle(file):
     img.add_layer(lyr, 0)
     img.filename = file.name
     return img
+
+def unshift_columns(canvas):
+    blue_color = Color(0, 0, 144)
+    blue_color2 = Color(0, 0, 208)
+
+    first_row = canvas[0]
+    row_len = len(first_row)
+    last_pixel = first_row[row_len - 1]
+    matches_blue = (last_pixel == blue_color or last_pixel == blue_color2)
+
+    # This blue pixel incidates the column has been encoded
+    # If it's not present, no shifting is present.
+    if (not matches_blue):
+        return canvas
+
+    # Move final two columns to start of the image
+    # RLE encodes these columns to the end of the rows
+    for i in range(0, len(canvas)):
+        current_row = canvas[i]
+        current_row.insert(0, current_row.pop(len(current_row) - 1))
+        current_row.insert(0, current_row.pop(len(current_row) - 1))
+        canvas[i] = current_row
+
+    # Moves each pixel of the first two columns up
+    # Pixels are shifted down and top pixels are encoded
+    for i in range(0, len(canvas)):
+        if (i + 2 < len(canvas)):
+            current_row = canvas[i]
+            next_row = canvas[i+1]
+            current_row[0] = next_row[0]
+            current_row[1] = next_row[1]
+            canvas[i] = current_row
+    return canvas
 
 def save_bmr(editor_image, drawable, filename, raw_filename):
     # Image is duplicated to avoid side effects / flattening user's image
