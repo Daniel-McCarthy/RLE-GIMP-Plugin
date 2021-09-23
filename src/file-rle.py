@@ -325,7 +325,7 @@ def save_rle(editor_image, drawable, filename, raw_filename):
     pixel_region = layer.get_pixel_rgn(0, 0, width, height)
     region_bytes = array("B", pixel_region[0:width, 0:height])
 
-    # Convert colors to encoded shorts
+    # Read in all pixels and convert to Color instances
     compressed_color_bytes = bytearray()
     from collections import deque
     pixel_colors_stack = deque()
@@ -352,12 +352,11 @@ def save_rle(editor_image, drawable, filename, raw_filename):
             total_pixels += previous_pattern.repetitions + 1
             previous_pattern = Color_Repetition(current_color, 0)
 
-        # If we're at the end, add the final pattern to list
-        is_last_iteration = i+1 == len(region_bytes)
-        if is_last_iteration:
-            pixel_colors_stack.append(previous_pattern)
-            total_pixels += previous_pattern.repetitions + 1
+    # When we're at the end, add the final pattern to list
+    pixel_colors_stack.append(previous_pattern)
+    total_pixels += previous_pattern.repetitions + 1
 
+    # Compress colors into pixel bytes
     while(not len(pixel_colors_stack) == 0):
         current_pattern = pixel_colors_stack.popleft()
 
