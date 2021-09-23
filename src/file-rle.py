@@ -35,6 +35,13 @@ def read_int_little_endian(file):
     integer &= 0xFFFFFFFF
     return integer
 
+def int_to_little_endian_bytes(integer):
+    bytes_arr = bytearray()
+    for _ in range(0, 4):
+        bytes_arr.append((integer & 0xFF))
+        integer >>= 8
+    return bytes_arr
+
 
 #####################
 ##   Entry Point   ##
@@ -270,6 +277,11 @@ def unshift_columns(canvas):
             canvas[i] = current_row
     return canvas
 
+class Color_Repetition:
+    def __init__(self, color, repetitions):
+        self.color = color
+        self.repetitions = repetitions
+
 def save_bmr(editor_image, drawable, filename, raw_filename):
     # Image is duplicated to avoid side effects / flattening user's image
     image = editor_image.duplicate()
@@ -297,12 +309,123 @@ def save_bmr(editor_image, drawable, filename, raw_filename):
     file = open(filename, 'wb')
     file.write(converted_color_bytes)
 
+
+def save_rle(editor_image, drawable, filename, raw_filename):
+    # Image is duplicated to avoid side effects / flattening user's image
+    image = editor_image.duplicate()
+    image.flatten()
+    width = image.width
+    height = image.height
+
+    if (width != 512):
+        pdb.gimp_message("Export failed: Image must be width 512. Received width: '{0}'.".format(width))
+        return
+
+    layer = image.layers[0]
+    pixel_region = layer.get_pixel_rgn(0, 0, width, height)
+    region_bytes = array("B", pixel_region[0:width, 0:height])
+
+    # Convert colors to encoded shorts
+    compressed_color_bytes = bytearray()
+    from collections import deque
+    pixel_colors_stack = deque()
+    max_repeats = 0b0111111111111111 # This is the maximum since the quantity must be encoded into 15 bits
+
+    total_pixels = 0
+    previous_pattern = None
+    for i in range(0, len(region_bytes), 3):
+        r = region_bytes[i]
+        g = region_bytes[i+1]
+        b = region_bytes[i+2]
+        current_color = Color(r, g, b)
+
+        if previous_pattern is None:
+            previous_pattern = Color_Repetition(current_color, 0)
+            continue
+
+        if (previous_pattern.color == current_color and previous_pattern.repetitions < max_repeats):
+            previous_pattern.repetitions += 1
+        else:
+            # Found a new color, add previous pattern to list
+            # and reset, with this as the new previous pattern
+            pixel_colors_stack.append(previous_pattern)
+            total_pixels += previous_pattern.repetitions + 1
+            previous_pattern = Color_Repetition(current_color, 0)
+
+        # If we're at the end, add the final pattern to list
+        is_last_iteration = i+1 == len(region_bytes)
+        if is_last_iteration:
+            pixel_colors_stack.append(previous_pattern)
+            total_pixels += previous_pattern.repetitions + 1
+
+    while(not len(pixel_colors_stack) == 0):
+        current_pattern = pixel_colors_stack.popleft()
+
+        if (current_pattern.repetitions == 0):
+            # Encode as series of single colors
+            unique_colors = deque()
+            unique_colors.append(current_pattern)
+
+            found_repeat = False
+            while(not found_repeat and not len(pixel_colors_stack) == 0):
+                next_pattern = pixel_colors_stack.popleft()
+
+                if (next_pattern.repetitions == 0 and len(unique_colors) < max_repeats):
+                    unique_colors.append(next_pattern)
+                else:
+                    # Found repeat color, put this back
+                    # and then encode the unique colors
+                    # we have already found
+                    pixel_colors_stack.appendleft(next_pattern)
+                    found_repeat = True
+
+            # Encode series of unique colors             
+            quantity = len(unique_colors)
+            byte_1 = (quantity & 0xFF)
+            byte_2 =((quantity & 0x7F00) >> 8)
+            compressed_color_bytes.append(byte_1)
+            compressed_color_bytes.append(byte_2)
+            while not len(unique_colors) == 0:
+                color = unique_colors.popleft().color
+                color_short = convert_rgb888_to_rgba5551(color.r, color.g, color.b)
+                byte_1 = (color_short & 0x00FF)
+                byte_2 = (color_short & 0xFF00) >> 8
+                compressed_color_bytes.append(byte_1)
+                compressed_color_bytes.append(byte_2)
+
+        else:
+            # Encode as a repeated color
+            # Pack quantity as 15 bit number, and 1 bit set as Repeat Flag
+            color = current_pattern.color
+            quantity = current_pattern.repetitions + 1
+            flag_byte_1 = quantity & 0xFF
+            flag_byte_2 = ((quantity & 0x7F00) >> 8) | EncodedFlags.REPEAT_COLOR
+            compressed_color_bytes.append(flag_byte_1)
+            compressed_color_bytes.append(flag_byte_2)
+
+            color_short = convert_rgb888_to_rgba5551(color.r, color.g, color.b)
+            color_byte_1 = color_short & 0x00FF
+            color_byte_2 = (color_short & 0xFF00) >> 8
+            compressed_color_bytes.append(color_byte_1)
+            compressed_color_bytes.append(color_byte_2)
+            
+
+    magic_number = "_RLE_16_"
+    decompressed_image_size = len(magic_number) + (total_pixels*2) + 2
+    image_size_bytes = int_to_little_endian_bytes(decompressed_image_size)
+
+    file = open(filename, 'wb')
+    file.write(magic_number)
+    file.write(bytes(image_size_bytes))
+    file.write(bytes(compressed_color_bytes))
+
 ######################
 ##      Plugin      ##
 ##   Registration   ##
 ######################
 
 def register_save_handlers():
+    gimp.register_save_handler('file-neversoft-rle-save', 'rle', '')
     gimp.register_save_handler('file-neversoft-bmr-save', 'bmr', '')
 
 def register_load_handlers():
@@ -328,6 +451,27 @@ register(
     identify_and_load_format,
     on_query=register_load_handlers,
     menu="<Load>",
+)
+
+register(
+    'file-neversoft-rle-save',
+    'save an RLE (.rle) file',
+    'save an RLE (.rle) file',
+    'Dan McCarthy',
+    'Dan McCarthy',
+    '2021',
+    'Neversoft RLE',
+    '*',
+    [
+        (PF_IMAGE, "image", "The image to be saved", None),
+        (PF_DRAWABLE, "drawable", "The drawable surface of image", None),
+        (PF_STRING, "filename", "Name for file being saved", None),
+        (PF_STRING, "raw-filename", "Raw name for file being saved", None),
+    ],
+    [],
+    save_rle,
+    on_query = register_save_handlers,
+    menu = '<Save>'
 )
 
 register(
