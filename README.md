@@ -6,7 +6,8 @@
  used in Neversoft's Spiderman 1 & 2, Apocalypse, and THPS.
  
 This plugin allows opening .bmr (raw bitmaps), and .rle (run length encoded) images
-from these games.
+from these games.<br>
+It now also supports exporting of .bmr and .rle images for 512px width images.
 
 # Installing the plugin for GIMP
 This plugin is written in Python 2 for GIMP v. 2.10. The script can be installed simply by copying the `file-rle.py` file to your plugin folder.
